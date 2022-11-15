@@ -3,37 +3,30 @@
 # SoftServe ITA
 # -------------------------------------------------------------
 
-name: CI
 
-on: push
 
-jobs:
-  BUILD-CUSTOM-UBUNTU-IMAGE:
-    runs-on: ubuntu-latest    
-    steps:
-    - name: CHECKOUT
-      uses: actions/checkout@v2
-  
+name: Run Azure Login with OpenID Connect and PowerShell
+on: [push]
 
-    - name: AZURE LOGIN 
-      uses: azure/login@v1
-      with:
-        creds: ${{secrets.AZ_CRED}}
-
-    - name: BUILD WEBAPP
-      run: sudo ${{ GITHUB.WORKSPACE }}/webApp/buildscript.sh # Run necessary build scripts and copies built artifacts to  ${{ GITHUB.WORKSPACE }}/workflow-artifacts
+permissions:
+      id-token: write
+      contents: read
       
+jobs: 
+  Windows-latest:
+      runs-on: windows-latest
+      steps:
+        - name: OIDC Login to Azure Public Cloud with AzPowershell (enableAzPSSession true)
+          uses: azure/login@v1
+          with:
+            client-id: ${{ secrets.AZ_CLIENT_ID }}
+            tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+            subscription-id: ${{ secrets.SUB_ID }} 
+            enable-AzPSSession: true
 
-    - name: BUILD-CUSTOM-VM-IMAGE      
-      uses: azure/build-vm-image@v0
-      with:        
-        resource-group-name: 'myResourceGroup'
-        managed-identity: 'myImageBuilderIdentity'
-        location: 'eastus2'
-        source-os-type: 'linux'        
-        source-image: Canonical:UbuntuServer:18.04-LTS:latest      
-        customizer-script: |
-          sh /tmp/workflow-artifacts/install.sh
-        dist-type: 'SharedImageGallery'
-        dist-resource-id: '/subscriptions/ ${{secrets.SUB_ID}} /resourceGroups/NetworkWatcherRG/providers/Microsoft.Compute/galleries/AppTeam/images/ImagesWithApp'
-        dist-location: 'eastus2'
+        - name: 'Get resource group with PowerShell action'
+          uses: azure/powershell@v1
+          with:
+             inlineScript: |
+               Get-AzResourceGroup
+             azPSVersion: "latest"
